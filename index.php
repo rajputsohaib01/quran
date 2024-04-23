@@ -168,11 +168,13 @@
       if (isset($versesData['verses'])) {
         $verses = $versesData['verses'];
 
-        // Loop through the verses and display them, skipping the first one
+        // Loop through the verses and display them, skippi
         // Loop through the verses and display them, skipping the first one
         for ($i = 0; $i < count($verses); $i++) {
           $verseNumber = $verses[$i]['verse_number'];
 
+        for ($i = 0; $i < count($verses); $i++) {
+          $verseNumber = $verses[$i]['verse_number'];
           $verseText = '';
           $verseTrans = '';
 
@@ -201,6 +203,30 @@
           echo "<div class='divider'></div>";
         }
 
+          foreach ($words as $word) {
+            // Concatenate the word text and its translation
+            $verseText .= '<span class="word" title="' . $word['translation']['text'] . '">' . $word['text_imlaei'] . '</span> ';
+            $verseTrans .= $word['translation']['text'] . ' ';
+          }
+
+          // Extract the number from the end of the verse
+          preg_match('/[٠-٩]+$/', $verseText, $matches);
+          $verseNumberAtEnd = isset($matches[0]) ? $matches[0] : '';
+
+          // Remove the number from the end of the verse text
+          $verseText = preg_replace('/[٠-٩]+$/', '', $verseText);
+
+          // Add the numeral extracted from the end of the verse in a circle at the end
+          $verseText .= " <br><span class='translation'>" . $verseTrans . "</span>";
+          if ($i == 0) {
+            // Align verses to the right and add a divider
+            echo "<p class='verse'><button class='open-modal-button' onclick='openModal(\"$verseNumber\")'><span class='fas fa-book-open'></span><span class='tafsir-text'> Tafsir </span></button><span class='play-button' onclick='playAudio(\"$chapterId\", \"$verseNumber\", this)'>▶</span><span class=''>$verseNumberAtEnd</span> $verseText</p>";
+            echo "<button class='open-modal-button btn btn-info' onclick='selectQari()'>Select Qari</button>";
+          } else {
+            echo "<p class='verse'><button class='open-modal-button' onclick='openModal(\"$verseNumber\")'><span class='fas fa-book-open'></span><span class='tafsir-text'> Tafsir </span></button><span class=''>$verseNumberAtEnd</span> $verseText</p>";
+          }
+          echo "<div class='divider'></div>";
+        }
       } else {
         echo "<p>No verses found for this chapter.</p>";
       }
@@ -396,7 +422,37 @@
         })
         .catch(error => console.error('Error fetching recitations:', error));
     }
+  fetch('https://api.quran.com/api/v4/resources/recitations')
+    .then(response => response.json())
+    .then(data => {
+      const qariModalBody = document.getElementById('qariList');
+      data.recitations.forEach(recitation => {
+        const qariButton = document.createElement('button');
+        qariButton.textContent = recitation.translated_name.name;
+        qariButton.classList.add('btn', 'btn-primary', 'mb-2');
+        qariButton.style.backgroundColor = '#00acc1'; // Set background color
+        qariButton.style.color = '#fff'; // Set text color to white
+        qariButton.style.display = 'block'; // Display each button on a separate line
+        qariButton.onclick = () => {
+          // Fetch audio URL from API
+          fetch(`https://api.quran.com/api/v4/chapter_recitations/${recitation.id}/${getChapterIdFromURL()}`)
+            .then(response => response.json())
+            .then(data => {
+              // Play the audio file
+              const audio = document.getElementById('quran-audio');
+              audio.src = data.audio_file.audio_url;
+              audio.play();
+              $('#qariModal').modal('hide'); // Hide the modal when audio starts playing
+            })
+            .catch(error => console.error('Error fetching audio:', error));
+        };
+        qariModalBody.appendChild(qariButton);
+      });
 
+      $('#qariModal').modal('show');
+    })
+    .catch(error => console.error('Error fetching recitations:', error));
+}
 
 
     function openTafsirPage(tafsirId) {
